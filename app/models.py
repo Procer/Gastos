@@ -23,6 +23,8 @@ class GastoData:
     comercio: str | None = None
     descripcion: str | None = None
     metodo_pago: str | None = None
+    es_recurrente: bool = False
+    kilometraje: int | None = None
 
 
 @dataclass
@@ -37,6 +39,7 @@ class NominaData:
     detalle_percepciones: list[dict[str, Any]] = field(default_factory=list)
     detalle_deducciones: list[dict[str, Any]] = field(default_factory=list)
     moneda: str = "MXN"
+    sueldo_base: float | None = None
 
 
 @dataclass

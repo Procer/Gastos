@@ -88,5 +88,9 @@ def check_telegram() -> None:
 
             file_bytes, filename = adjunto
             process_document(
-                file_bytes, filename, fuente="telegram", referencia_fuente=str(update["update_id"])
+                file_bytes,
+                filename,
+                fuente="telegram",
+                referencia_fuente=str(update["update_id"]),
+                nota_usuario=message.get("caption"),
             )

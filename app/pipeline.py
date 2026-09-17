@@ -11,6 +11,7 @@ from app.config import settings
 from app.extraction.pdf_extractor import es_pdf_escaneado, extract_text_from_pdf
 from app.extraction.pdf_to_images import render_pdf_pages_to_images
 from app.extraction.image_ocr import extract_text_from_image
+from app.km_parser import parse_kilometraje
 
 logger = logging.getLogger(__name__)
 
@@ -51,13 +52,37 @@ def _extraer_texto(file_bytes: bytes, tipo_archivo: str) -> str:
     return "\n".join(extract_text_from_image(pagina) for pagina in paginas)
 
 
+def _registrar_aumento_nomina(nomina_id: int, nomina) -> None:
+    """Compara el sueldo_base contra el recibo anterior del mismo empleador.
+
+    Corre en su propio try/except *después* de que el documento ya quedó como
+    completado — si esta comparación falla, nunca debe tumbar el documento a error.
+    """
+    if not nomina.empleador or nomina.sueldo_base is None:
+        return  # sin empleador o sin sueldo_base no se puede comparar con seguridad
+
+    sueldo_anterior = db.find_sueldo_base_anterior(nomina.empleador, nomina_id)
+    if sueldo_anterior is None:
+        return  # primer recibo de este empleador, no es un "aumento" falso
+
+    if abs(nomina.sueldo_base - sueldo_anterior) > 0.01:
+        db.insert_nomina_aumento(
+            nomina_id=nomina_id,
+            empleador=nomina.empleador,
+            sueldo_base_anterior=sueldo_anterior,
+            sueldo_base_nuevo=nomina.sueldo_base,
+            fecha_pago=nomina.fecha_pago,
+        )
+
+
 def process_document(
     file_bytes: bytes,
     filename: str,
     fuente: str,
     referencia_fuente: str | None = None,
+    nota_usuario: str | None = None,
 ) -> int:
-    """Procesa un comprobante venga de donde venga (subida manual o correo).
+    """Procesa un comprobante venga de donde venga (subida manual, correo o Telegram).
 
     Devuelve el id de la fila en `documentos`. Nunca lanza excepción hacia afuera:
     cualquier fallo se registra como estado='error' y se notifica por correo.
@@ -71,6 +96,7 @@ def process_document(
 
     tipo_archivo = _detectar_tipo_archivo(filename)
     ruta_archivo = _guardar_archivo(file_bytes, filename)
+    kilometraje = parse_kilometraje(nota_usuario)
 
     documento_id = db.insert_documento(
         fuente=fuente,
@@ -79,6 +105,7 @@ def process_document(
         nombre_archivo_original=filename,
         ruta_archivo=ruta_archivo,
         tipo_archivo=tipo_archivo,
+        nota_usuario=nota_usuario,
     )
 
     try:
@@ -90,6 +117,7 @@ def process_document(
         gasto_id = None
         nomina_id = None
         if resultado.gasto is not None:
+            resultado.gasto.kilometraje = kilometraje
             gasto_id = db.insert_gasto(documento_id, resultado.gasto)
         if resultado.nomina is not None:
             nomina_id = db.insert_nomina(documento_id, resultado.nomina)
@@ -101,6 +129,14 @@ def process_document(
             gasto_id=gasto_id,
             nomina_id=nomina_id,
         )
+
+        if nomina_id is not None:
+            try:
+                _registrar_aumento_nomina(nomina_id, resultado.nomina)
+            except Exception:
+                logger.exception(
+                    "Falló la comparación de aumento de nómina para documento %s", documento_id
+                )
     except Exception as exc:
         logger.exception("Error procesando documento %s", documento_id)
         db.marcar_documento_error(documento_id, str(exc))

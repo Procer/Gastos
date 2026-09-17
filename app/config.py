@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     upload_api_key: str = ""
     uploads_dir: str = "/app/uploads"
 
+    # Webhook de km-auto (kilómetros reales recorridos)
+    km_auto_forward_secret: str = ""
+
     class Config:
         env_file = ".env"
 

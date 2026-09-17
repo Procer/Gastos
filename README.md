@@ -22,6 +22,8 @@ Copia `.env.example` a `.env` y llena:
 - **Gmail**: activa verificación en 2 pasos en tu cuenta → genera una "contraseña de aplicación" en myaccount.google.com/apppasswords → úsala en `IMAP_APP_PASSWORD` y `SMTP_APP_PASSWORD` (puede ser la misma)
 - **UPLOAD_API_KEY**: cualquier cadena larga y aleatoria, la usarás para autenticar la subida manual
 - **Telegram** (opcional): crea un bot con @BotFather → `TELEGRAM_BOT_TOKEN`; consigue tu chat id con @userinfobot → `TELEGRAM_ALLOWED_CHAT_ID` (solo ese chat puede mandarle comprobantes al bot)
+- **KM_AUTO_FORWARD_SECRET** (opcional): solo si vas a integrar `km-auto` — mismo valor que pongas como `FORWARD_SECRET` en el `.env` de `km-auto`
+- **APP_PORT** (opcional): cambia el puerto donde se expone la API en el host si el 8000 ya está ocupado (ej. en el VPS); por default sigue siendo 8000
 
 ## Correr en local
 
@@ -31,7 +33,11 @@ Manualmente:
 
 ```bash
 docker compose up -d --build
+docker compose exec -T app python -m app.migrate
 ```
+
+El segundo comando aplica las migraciones pendientes de `db/migrations/` (idempotente:
+si ya están aplicadas no hace nada). `iniciar.bat` ya lo corre solo.
 
 Probar que la API responde:
 
@@ -80,8 +86,17 @@ Desde ahí puedes ver y filtrar las tablas `documentos`, `gastos` y `nomina` con
 4. Si expones el puerto 8000 a internet, ponle un proxy con HTTPS (ej. Caddy o Nginx) en frente — no lo dejes expuesto sin TLS
 5. Considera quitar el `ports: 5432:5432` de Postgres en producción (o limitarlo a `127.0.0.1:5432`) para que no quede expuesto a internet
 
+## Fase 2
+
+- **Gastos recurrentes**: la IA marca `es_recurrente` en cada gasto (renta, suscripciones, seguros anuales, servicios = sí; comida, gasolina, compras puntuales = no)
+- **Kilometraje**: en los 3 canales (subida manual, Telegram, correo) puedes escribir `km:45230` en el campo `nota_usuario` del `/upload`, en el caption de Telegram, o en el asunto del correo — se guarda en `gastos.kilometraje` y la nota completa en `documentos.nota_usuario`
+- **Aumentos de sueldo**: la IA extrae `sueldo_base` de cada recibo de nómina y lo compara contra el recibo anterior del mismo empleador; si cambia, queda registrado en `nomina_aumentos`. Consulta el historial en `GET /nomina/aumentos`
+- **Tareas del auto**: CRUD simple en `/tareas-auto` (crear, listar con filtro `?estado=`, ver una, marcar completada) — cada tarea necesita fecha límite y/o km límite
+- **Integración con km-auto**: `POST /webhooks/km-auto` recibe el resumen diario de kilómetros recorridos que manda el proyecto externo `km-auto`, validado con el header `X-Forward-Secret` contra `KM_AUTO_FORWARD_SECRET`, y hace upsert en `km_diario` (por fecha + vehículo, así reenvíos duplicados no generan filas repetidas)
+
 ## Notas de diseño
 
 - El `hash_archivo` (SHA256) evita procesar el mismo comprobante dos veces
 - El endpoint de subida manual y el worker de correo llaman a la misma función `app/pipeline.py::process_document`, así que agregar un canal nuevo (ej. Telegram) solo requiere descargar el archivo y llamar a esa función
 - El campo `categoria` es texto libre (no un catálogo con llave foránea) para poder ajustar categorías sin migrar la base de datos
+- `db/schema.sql` solo corre una vez al crear el volumen de Postgres; todo cambio de esquema posterior va en `db/migrations/`, aplicado por `app/migrate.py` (sin ORM, sin Alembic — cada migración corre en su propia transacción y queda marcada en `schema_migrations`)

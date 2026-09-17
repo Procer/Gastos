@@ -1,0 +1,1 @@
+ALTER TABLE gastos ADD COLUMN es_recurrente BOOLEAN NOT NULL DEFAULT false;

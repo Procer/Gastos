@@ -1,6 +1,7 @@
 import email
 import imaplib
 import logging
+from email.header import decode_header
 from email.message import Message
 from pathlib import Path
 
@@ -16,7 +17,19 @@ def _tiene_extension_valida(filename: str) -> bool:
     return Path(filename).suffix.lower() in EXTENSIONES_VALIDAS
 
 
+def _decodificar_asunto(msg: Message) -> str | None:
+    asunto_crudo = msg.get("Subject")
+    if not asunto_crudo:
+        return None
+    partes = decode_header(asunto_crudo)
+    return "".join(
+        texto.decode(codificacion or "utf-8", errors="replace") if isinstance(texto, bytes) else texto
+        for texto, codificacion in partes
+    )
+
+
 def _procesar_adjuntos(msg: Message, referencia_fuente: str) -> None:
+    nota_usuario = _decodificar_asunto(msg)
     for part in msg.walk():
         filename = part.get_filename()
         if not filename or not _tiene_extension_valida(filename):
@@ -24,7 +37,13 @@ def _procesar_adjuntos(msg: Message, referencia_fuente: str) -> None:
         payload = part.get_payload(decode=True)
         if not payload:
             continue
-        process_document(payload, filename, fuente="email", referencia_fuente=referencia_fuente)
+        process_document(
+            payload,
+            filename,
+            fuente="email",
+            referencia_fuente=referencia_fuente,
+            nota_usuario=nota_usuario,
+        )
 
 
 def check_inbox() -> None:

@@ -18,6 +18,9 @@ docker compose up -d
 echo Esperando a que el agente termine de iniciar...
 ping -n 7 127.0.0.1 >nul
 
+echo Aplicando migraciones pendientes...
+docker compose exec -T app python -m app.migrate
+
 echo Listo! Abriendo el sistema en tu navegador...
 start http://localhost:8000/docs
 start http://localhost:8081

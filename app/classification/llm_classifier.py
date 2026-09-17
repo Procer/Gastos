@@ -26,6 +26,15 @@ Categorías válidas para gasto_personal: {sorted(CATEGORIAS_PERSONAL)}
 Llama siempre a la herramienta "registrar_documento" con los datos que puedas extraer del texto.
 Si un dato no aparece en el texto, usa null. Los montos son números (no strings), las fechas en formato YYYY-MM-DD.
 Solo llena el objeto "gasto" si tipo_documento es gasto_personal o gasto_auto. Solo llena "nomina" si tipo_documento es recibo_nomina.
+
+Para gastos, decide también "es_recurrente": true si es un gasto fijo que se repite periódicamente
+(renta, suscripciones, seguros anuales, servicios como luz/agua/internet/teléfono), false si es un
+gasto variable puntual (comida, gasolina, compras, entretenimiento, transporte ocasional).
+
+Para recibos de nómina, extrae también "sueldo_base": el sueldo base/tabulador del periodo, es decir
+el concepto de percepción fijo (a veces llamado "sueldo", "sueldo base", "salario base" o similar),
+SIN incluir bonos, horas extra, aguinaldo ni otras percepciones variables. Si no puedes identificarlo
+con certeza en el detalle de percepciones, usa null.
 """
 
 # Gemini no recibe la herramienta como tool-calling con schema estricto en este flujo;
@@ -43,7 +52,8 @@ Responde ÚNICAMENTE con un JSON (sin texto adicional, sin markdown) con esta fo
     "fecha": "YYYY-MM-DD",
     "comercio": "..." o null,
     "descripcion": "..." o null,
-    "metodo_pago": "..." o null
+    "metodo_pago": "..." o null,
+    "es_recurrente": true o false
   },
   "nomina": null o {
     "empleador": "..." o null,
@@ -53,6 +63,7 @@ Responde ÚNICAMENTE con un JSON (sin texto adicional, sin markdown) con esta fo
     "percepciones": 123.45,
     "deducciones": 123.45,
     "neto_pagado": 123.45,
+    "sueldo_base": 123.45 o null,
     "detalle_percepciones": [{"concepto": "...", "monto": 123.45}],
     "detalle_deducciones": [{"concepto": "...", "monto": 123.45}],
     "moneda": "MXN"
@@ -83,8 +94,9 @@ TOOL_SCHEMA = {
                     "comercio": {"type": ["string", "null"]},
                     "descripcion": {"type": ["string", "null"]},
                     "metodo_pago": {"type": ["string", "null"]},
+                    "es_recurrente": {"type": "boolean"},
                 },
-                "required": ["tipo", "categoria", "monto", "fecha"],
+                "required": ["tipo", "categoria", "monto", "fecha", "es_recurrente"],
             },
             "nomina": {
                 "type": ["object", "null"],
@@ -96,6 +108,7 @@ TOOL_SCHEMA = {
                     "percepciones": {"type": "number"},
                     "deducciones": {"type": "number"},
                     "neto_pagado": {"type": "number"},
+                    "sueldo_base": {"type": ["number", "null"]},
                     "detalle_percepciones": {
                         "type": "array",
                         "items": {
@@ -201,6 +214,7 @@ def classify_document(texto: str) -> ClasificacionResultado:
             comercio=g.get("comercio"),
             descripcion=g.get("descripcion"),
             metodo_pago=g.get("metodo_pago"),
+            es_recurrente=bool(g.get("es_recurrente", False)),
         )
     elif tipo_documento == "recibo_nomina":
         n = datos.get("nomina")
@@ -217,6 +231,7 @@ def classify_document(texto: str) -> ClasificacionResultado:
             detalle_percepciones=n.get("detalle_percepciones") or [],
             detalle_deducciones=n.get("detalle_deducciones") or [],
             moneda=n.get("moneda") or "MXN",
+            sueldo_base=float(n["sueldo_base"]) if n.get("sueldo_base") is not None else None,
         )
     else:
         raise ValueError(f"tipo_documento desconocido: {tipo_documento}")
