@@ -7,151 +7,266 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="topbar">
-  <h1>Agente de gastos</h1>
-  <div class="apikey-box">
-    <label for="apiKeyInput">API Key</label>
-    <input type="password" id="apiKeyInput" placeholder="Pega tu UPLOAD_API_KEY">
-    <button id="btnGuardarKey">Guardar</button>
-    <span id="apiKeyEstado" class="estado-key"></span>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">Agente de gastos</div>
+    <nav id="navPrincipal">
+      <button class="nav-link" data-view="inicio">Inicio</button>
+      <button class="nav-link" data-view="documentos">Documentos</button>
+      <button class="nav-link" data-view="gastos">Gastos</button>
+      <button class="nav-link" data-view="nomina">Nómina</button>
+      <button class="nav-link" data-view="mi-auto">Mi auto</button>
+      <button class="nav-link" data-view="ayuda">Ayuda</button>
+    </nav>
+    <div class="apikey-box">
+      <label for="apiKeyInput">API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="Pega tu UPLOAD_API_KEY">
+      <button id="btnGuardarKey">Guardar</button>
+      <span id="apiKeyEstado" class="estado-key"></span>
+    </div>
+  </aside>
+
+  <main class="content">
+
+    <!-- ---------------- INICIO ---------------- -->
+    <section class="view" id="view-inicio">
+      <h1>Inicio</h1>
+
+      <div class="card" id="seccion-subir">
+        <h2>Subir comprobante</h2>
+        <p class="hint">¿No sabes cómo mandar tus comprobantes? Revisa la sección <a href="#ayuda">Ayuda</a>.</p>
+        <form id="formSubir">
+          <input type="file" id="archivoInput" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" required>
+          <input type="text" id="notaInput" placeholder="Nota (opcional) — ej. km:45230 auto:sedan">
+          <button type="submit">Subir y procesar</button>
+        </form>
+        <div id="subirResultado"></div>
+      </div>
+
+      <section class="resumen-grid">
+        <div class="card resumen-tile">
+          <span class="resumen-label">Gasto del mes</span>
+          <span class="resumen-valor" id="resGastoMes">—</span>
+        </div>
+        <div class="card resumen-tile">
+          <span class="resumen-label">Recurrentes / variables (mes)</span>
+          <span class="resumen-valor" id="resRecurrentes">—</span>
+        </div>
+        <div class="card resumen-tile">
+          <span class="resumen-label">Tareas del auto pendientes</span>
+          <span class="resumen-valor" id="resTareas">—</span>
+        </div>
+        <div class="card resumen-tile">
+          <span class="resumen-label">Aumentos de nómina detectados</span>
+          <span class="resumen-valor" id="resAumentos">—</span>
+        </div>
+      </section>
+    </section>
+
+    <!-- ---------------- DOCUMENTOS ---------------- -->
+    <section class="view hidden" id="view-documentos">
+      <h1>Documentos</h1>
+      <div class="card">
+        <h2>Historial de comprobantes procesados</h2>
+        <div class="table-wrap">
+          <table id="tablaDocumentos">
+            <thead>
+              <tr><th>ID</th><th>Fuente</th><th>Archivo</th><th>Estado</th><th>Tipo</th><th>Fecha</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- GASTOS ---------------- -->
+    <section class="view hidden" id="view-gastos">
+      <h1>Gastos</h1>
+      <div class="card">
+        <div class="filtros">
+          <label>Tipo:
+            <select id="filtroTipo">
+              <option value="">Todos</option>
+              <option value="personal">Personal</option>
+              <option value="auto">Auto</option>
+            </select>
+          </label>
+          <label>Recurrencia:
+            <select id="filtroRecurrente">
+              <option value="">Todas</option>
+              <option value="true">Recurrentes</option>
+              <option value="false">Variables</option>
+            </select>
+          </label>
+        </div>
+        <div class="charts-row">
+          <div class="chart-box"><canvas id="chartCategorias"></canvas></div>
+          <div class="chart-box"><canvas id="chartRecurrencia"></canvas></div>
+        </div>
+        <div class="table-wrap">
+          <table id="tablaGastos">
+            <thead>
+              <tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Comercio</th><th>Monto</th><th>Recurrente</th><th>Km</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- NOMINA ---------------- -->
+    <section class="view hidden" id="view-nomina">
+      <h1>Nómina</h1>
+      <div class="card">
+        <h2>Recibos de sueldo</h2>
+        <div class="table-wrap">
+          <table id="tablaNomina">
+            <thead>
+              <tr><th>Fecha pago</th><th>Empleador</th><th>Sueldo base</th><th>Percepciones</th><th>Deducciones</th><th>Neto</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Aumentos detectados</h2>
+        <div class="table-wrap">
+          <table id="tablaAumentos">
+            <thead>
+              <tr><th>Fecha pago</th><th>Empleador</th><th>Anterior</th><th>Nuevo</th><th>Diferencia</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- MI AUTO ---------------- -->
+    <section class="view hidden" id="view-mi-auto">
+      <h1>Mi auto</h1>
+
+      <div class="card">
+        <h2>Vehículos</h2>
+        <p class="hint">Los gastos se asignan solos al vehículo correcto cuando mandas el comprobante con la nota <code>auto:nombre</code> (si solo tienes un vehículo, no hace falta etiquetar nada).</p>
+        <div class="autos-grid" id="autosGrid"></div>
+      </div>
+
+      <div class="card">
+        <div class="filtros">
+          <label>Vehículo:
+            <select id="filtroAutoSeleccionado"></select>
+          </label>
+        </div>
+
+        <div class="subtabs" id="subtabsAuto">
+          <button class="subtab-btn active" data-subtab="cargas">Cargas de combustible</button>
+          <button class="subtab-btn" data-subtab="pagos">Pagos</button>
+          <button class="subtab-btn" data-subtab="tareas">Tareas</button>
+        </div>
+
+        <div class="subview" id="subview-cargas">
+          <div class="chart-box chart-box-full"><canvas id="chartKmAuto"></canvas></div>
+          <div class="table-wrap">
+            <table id="tablaCargas">
+              <thead><tr><th>Fecha</th><th>Comercio</th><th>Monto</th><th>Km</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="subview hidden" id="subview-pagos">
+          <div class="table-wrap">
+            <table id="tablaPagos">
+              <thead><tr><th>Fecha</th><th>Categoría</th><th>Comercio</th><th>Monto</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="subview hidden" id="subview-tareas">
+          <form id="formTarea" class="form-inline">
+            <input type="text" id="tareaDescripcion" placeholder="Descripción" required>
+            <input type="date" id="tareaFechaLimite">
+            <input type="number" id="tareaKmLimite" placeholder="Km límite">
+            <button type="submit">Crear tarea</button>
+          </form>
+          <div class="filtros">
+            <label>Estado:
+              <select id="filtroEstadoTarea">
+                <option value="">Todas</option>
+                <option value="pendiente" selected>Pendientes</option>
+                <option value="completada">Completadas</option>
+              </select>
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table id="tablaTareas">
+              <thead>
+                <tr><th>Descripción</th><th>Límite</th><th>Completada</th><th>Costo</th><th>Estado</th><th>Adjuntos</th><th></th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- AYUDA ---------------- -->
+    <section class="view hidden" id="view-ayuda">
+      <h1>Ayuda</h1>
+      <div class="card">
+        <h2>¿Cómo mando mis comprobantes?</h2>
+        <p class="hint">Hay 3 formas de mandar un comprobante (ticket, factura o recibo de nómina). En cualquiera de las 3, el sistema lo lee solo, lo clasifica y lo guarda — no necesitas hacer nada más.</p>
+
+        <div class="ayuda-canal">
+          <h3>1. Subida manual (aquí mismo)</h3>
+          <p>Ve a <a href="#inicio">Inicio</a>, elige el archivo (PDF o foto) y dale "Subir y procesar". Es la forma más directa para probar.</p>
+        </div>
+
+        <div class="ayuda-canal">
+          <h3>2. Telegram <span id="estadoTelegram" class="tag-estado">—</span></h3>
+          <p>Manda el PDF o la foto del comprobante directo al chat de Telegram autorizado. Puedes escribir la nota (ver abajo) en el <em>caption</em> de la foto/archivo.</p>
+        </div>
+
+        <div class="ayuda-canal">
+          <h3>3. Correo <span id="estadoEmail" class="tag-estado">—</span></h3>
+          <p>Manda un correo con el comprobante adjunto (PDF o foto) al buzón configurado. Puedes escribir la nota (ver abajo) en el <strong>asunto</strong> del correo. Se revisa el buzón cada <span id="intervaloEmail">—</span> segundos.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>La nota: kilometraje y vehículo</h2>
+        <p>En cualquiera de los 3 canales puedes escribir una nota junto con el comprobante (campo "Nota" al subir manualmente, caption en Telegram, asunto en el correo):</p>
+        <ul>
+          <li><code>km:45230</code> — guarda el kilometraje del auto en ese momento (tolera variantes: <code>km 45230</code>, <code>km=45230</code>, <code>KM: 45,230</code>)</li>
+          <li><code>auto:nombre</code> — dice a qué vehículo pertenece el gasto (usa el mismo "nombre" con el que creaste el vehículo en <a href="#mi-auto">Mi auto</a>). Si solo tienes un vehículo activo, no hace falta ponerlo, se asigna solo.</li>
+        </ul>
+        <p>Se pueden combinar: <code>km:45230 auto:sedan</code>.</p>
+      </div>
+
+      <div class="card">
+        <h2>Estados de un documento</h2>
+        <ul>
+          <li><span class="badge badge-procesando">procesando</span> — se acaba de recibir, la IA lo está leyendo (tarda unos segundos)</li>
+          <li><span class="badge badge-completado">completado</span> — ya se clasificó y guardó como gasto o recibo de nómina</li>
+          <li><span class="badge badge-error">error</span> — algo falló (ej. el archivo no se pudo leer); te llega una alerta por correo</li>
+          <li><span class="badge badge-duplicado">duplicado</span> — ya habías mandado ese mismo archivo antes, no se vuelve a procesar</li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitulo"></h3>
+      <button id="modalCerrar" type="button">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
   </div>
-</header>
-
-<main>
-  <section class="card" id="seccion-subir">
-    <h2>Subir comprobante</h2>
-    <form id="formSubir">
-      <input type="file" id="archivoInput" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" required>
-      <input type="text" id="notaInput" placeholder="Nota (opcional) — ej. km:45230">
-      <button type="submit">Subir y procesar</button>
-    </form>
-    <div id="subirResultado"></div>
-  </section>
-
-  <section class="resumen-grid">
-    <div class="card resumen-tile">
-      <span class="resumen-label">Gasto del mes</span>
-      <span class="resumen-valor" id="resGastoMes">—</span>
-    </div>
-    <div class="card resumen-tile">
-      <span class="resumen-label">Recurrentes / variables (mes)</span>
-      <span class="resumen-valor" id="resRecurrentes">—</span>
-    </div>
-    <div class="card resumen-tile">
-      <span class="resumen-label">Tareas del auto pendientes</span>
-      <span class="resumen-valor" id="resTareas">—</span>
-    </div>
-    <div class="card resumen-tile">
-      <span class="resumen-label">Aumentos de nómina detectados</span>
-      <span class="resumen-valor" id="resAumentos">—</span>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Documentos recientes</h2>
-    <div class="table-wrap">
-      <table id="tablaDocumentos">
-        <thead>
-          <tr><th>ID</th><th>Fuente</th><th>Archivo</th><th>Estado</th><th>Tipo</th><th>Fecha</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Gastos</h2>
-    <div class="filtros">
-      <label>Tipo:
-        <select id="filtroTipo">
-          <option value="">Todos</option>
-          <option value="personal">Personal</option>
-          <option value="auto">Auto</option>
-        </select>
-      </label>
-      <label>Recurrencia:
-        <select id="filtroRecurrente">
-          <option value="">Todas</option>
-          <option value="true">Recurrentes</option>
-          <option value="false">Variables</option>
-        </select>
-      </label>
-    </div>
-    <div class="charts-row">
-      <div class="chart-box"><canvas id="chartCategorias"></canvas></div>
-      <div class="chart-box"><canvas id="chartRecurrencia"></canvas></div>
-    </div>
-    <div class="table-wrap">
-      <table id="tablaGastos">
-        <thead>
-          <tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Comercio</th><th>Monto</th><th>Recurrente</th><th>Km</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Nómina</h2>
-    <div class="table-wrap">
-      <table id="tablaNomina">
-        <thead>
-          <tr><th>Fecha pago</th><th>Empleador</th><th>Sueldo base</th><th>Percepciones</th><th>Deducciones</th><th>Neto</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-    <h3>Aumentos detectados</h3>
-    <div class="table-wrap">
-      <table id="tablaAumentos">
-        <thead>
-          <tr><th>Fecha pago</th><th>Empleador</th><th>Anterior</th><th>Nuevo</th><th>Diferencia</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Tareas del auto</h2>
-    <form id="formTarea" class="form-inline">
-      <input type="text" id="tareaDescripcion" placeholder="Descripción" required>
-      <input type="date" id="tareaFechaLimite">
-      <input type="number" id="tareaKmLimite" placeholder="Km límite">
-      <button type="submit">Crear tarea</button>
-    </form>
-    <div class="filtros">
-      <label>Estado:
-        <select id="filtroEstadoTarea">
-          <option value="">Todas</option>
-          <option value="pendiente" selected>Pendientes</option>
-          <option value="completada">Completadas</option>
-        </select>
-      </label>
-    </div>
-    <div class="table-wrap">
-      <table id="tablaTareas">
-        <thead>
-          <tr><th>Descripción</th><th>Fecha límite</th><th>Km límite</th><th>Estado</th><th></th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Kilometraje diario (km-auto)</h2>
-    <div class="chart-box chart-box-full"><canvas id="chartKm"></canvas></div>
-    <div class="table-wrap">
-      <table id="tablaKm">
-        <thead>
-          <tr><th>Fecha</th><th>Vehículo</th><th>Km</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-  </section>
-</main>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>

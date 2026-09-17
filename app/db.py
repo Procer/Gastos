@@ -82,13 +82,13 @@ def insert_gasto(documento_id: int, gasto: GastoData) -> int:
                 """
                 INSERT INTO gastos
                     (documento_id, tipo, categoria, monto, moneda, fecha,
-                     comercio, descripcion, metodo_pago, es_recurrente, kilometraje)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     comercio, descripcion, metodo_pago, es_recurrente, kilometraje, auto_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (documento_id, gasto.tipo, gasto.categoria, gasto.monto, gasto.moneda,
                  gasto.fecha, gasto.comercio, gasto.descripcion, gasto.metodo_pago,
-                 gasto.es_recurrente, gasto.kilometraje),
+                 gasto.es_recurrente, gasto.kilometraje, gasto.auto_id),
             )
             return cur.fetchone()[0]
 
@@ -234,7 +234,11 @@ def list_documentos(limit: int = 50) -> list[dict[str, Any]]:
 
 
 def list_gastos(
-    tipo: str | None = None, es_recurrente: bool | None = None, limit: int = 200
+    tipo: str | None = None,
+    es_recurrente: bool | None = None,
+    auto_id: int | None = None,
+    categoria: str | None = None,
+    limit: int = 200,
 ) -> list[dict[str, Any]]:
     condiciones = []
     valores: list[Any] = []
@@ -244,6 +248,12 @@ def list_gastos(
     if es_recurrente is not None:
         condiciones.append("es_recurrente = %s")
         valores.append(es_recurrente)
+    if auto_id is not None:
+        condiciones.append("auto_id = %s")
+        valores.append(auto_id)
+    if categoria:
+        condiciones.append("categoria = %s")
+        valores.append(categoria)
     where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
     valores.append(limit)
 
@@ -277,30 +287,38 @@ def list_km_diario(limit: int = 60) -> list[dict[str, Any]]:
 
 
 def insert_tarea_auto(
-    descripcion: str, fecha_limite: str | None, km_limite: int | None
+    descripcion: str,
+    fecha_limite: str | None,
+    km_limite: int | None,
+    auto_id: int | None = None,
 ) -> int:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO tareas_auto (descripcion, fecha_limite, km_limite)
-                VALUES (%s, %s, %s)
+                INSERT INTO tareas_auto (descripcion, fecha_limite, km_limite, auto_id)
+                VALUES (%s, %s, %s, %s)
                 RETURNING id
                 """,
-                (descripcion, fecha_limite, km_limite),
+                (descripcion, fecha_limite, km_limite, auto_id),
             )
             return cur.fetchone()[0]
 
 
-def list_tareas_auto(estado: str | None) -> list[dict[str, Any]]:
+def list_tareas_auto(estado: str | None, auto_id: int | None = None) -> list[dict[str, Any]]:
+    condiciones = []
+    valores: list[Any] = []
+    if estado:
+        condiciones.append("estado = %s")
+        valores.append(estado)
+    if auto_id is not None:
+        condiciones.append("auto_id = %s")
+        valores.append(auto_id)
+    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+
     with get_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            if estado:
-                cur.execute(
-                    "SELECT * FROM tareas_auto WHERE estado = %s ORDER BY id DESC", (estado,)
-                )
-            else:
-                cur.execute("SELECT * FROM tareas_auto ORDER BY id DESC")
+            cur.execute(f"SELECT * FROM tareas_auto {where} ORDER BY id DESC", valores)
             return cur.fetchall()
 
 
@@ -311,16 +329,134 @@ def get_tarea_auto(tarea_id: int) -> dict[str, Any] | None:
             return cur.fetchone()
 
 
-def completar_tarea_auto(tarea_id: int) -> None:
+def completar_tarea_auto(
+    tarea_id: int,
+    fecha_completada: str | None,
+    costo: float | None,
+    kilometraje_completado: int | None,
+) -> None:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE tareas_auto
-                SET estado = 'completada', actualizado_en = now()
+                SET estado = 'completada',
+                    fecha_completada = COALESCE(%s, CURRENT_DATE),
+                    costo = %s,
+                    kilometraje_completado = %s,
+                    actualizado_en = now()
                 WHERE id = %s
                 """,
+                (fecha_completada, costo, kilometraje_completado, tarea_id),
+            )
+
+
+def insert_tarea_adjunto(tarea_id: int, nombre_archivo_original: str, ruta_archivo: str) -> int:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO tareas_auto_adjuntos (tarea_id, nombre_archivo_original, ruta_archivo)
+                VALUES (%s, %s, %s)
+                RETURNING id
+                """,
+                (tarea_id, nombre_archivo_original, ruta_archivo),
+            )
+            return cur.fetchone()[0]
+
+
+def list_tarea_adjuntos(tarea_id: int) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM tareas_auto_adjuntos WHERE tarea_id = %s ORDER BY id",
                 (tarea_id,),
+            )
+            return cur.fetchall()
+
+
+def get_tarea_adjunto(adjunto_id: int) -> dict[str, Any] | None:
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM tareas_auto_adjuntos WHERE id = %s", (adjunto_id,))
+            return cur.fetchone()
+
+
+# ---------- Autos ----------
+
+
+def insert_auto(
+    nombre: str, marca: str | None, modelo: str | None, anio: int | None, placas: str | None
+) -> int:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO autos (nombre, marca, modelo, anio, placas)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (nombre, marca, modelo, anio, placas),
+            )
+            return cur.fetchone()[0]
+
+
+def list_autos(activo: bool | None = None) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            if activo is None:
+                cur.execute("SELECT * FROM autos ORDER BY id")
+            else:
+                cur.execute("SELECT * FROM autos WHERE activo = %s ORDER BY id", (activo,))
+            return cur.fetchall()
+
+
+def get_auto(auto_id: int) -> dict[str, Any] | None:
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM autos WHERE id = %s", (auto_id,))
+            return cur.fetchone()
+
+
+def find_auto_by_nombre(nombre: str) -> dict[str, Any] | None:
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM autos WHERE LOWER(nombre) = LOWER(%s)", (nombre,))
+            return cur.fetchone()
+
+
+def get_unico_auto_activo() -> dict[str, Any] | None:
+    """Si hay exactamente un auto activo registrado, lo devuelve (para asignar gastos sin tag)."""
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM autos WHERE activo = true LIMIT 2")
+            filas = cur.fetchall()
+            return filas[0] if len(filas) == 1 else None
+
+
+def update_auto(
+    auto_id: int,
+    nombre: str | None,
+    marca: str | None,
+    modelo: str | None,
+    anio: int | None,
+    placas: str | None,
+    activo: bool | None,
+) -> None:
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE autos
+                SET nombre = COALESCE(%s, nombre),
+                    marca = COALESCE(%s, marca),
+                    modelo = COALESCE(%s, modelo),
+                    anio = COALESCE(%s, anio),
+                    placas = COALESCE(%s, placas),
+                    activo = COALESCE(%s, activo)
+                WHERE id = %s
+                """,
+                (nombre, marca, modelo, anio, placas, activo, auto_id),
             )
 
 

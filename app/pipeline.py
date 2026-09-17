@@ -11,7 +11,7 @@ from app.config import settings
 from app.extraction.pdf_extractor import es_pdf_escaneado, extract_text_from_pdf
 from app.extraction.pdf_to_images import render_pdf_pages_to_images
 from app.extraction.image_ocr import extract_text_from_image
-from app.km_parser import parse_kilometraje
+from app.km_parser import parse_auto_tag, parse_kilometraje
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,22 @@ def _extraer_texto(file_bytes: bytes, tipo_archivo: str) -> str:
     # manda por el mismo camino de OCR que las fotos.
     paginas = render_pdf_pages_to_images(file_bytes)
     return "\n".join(extract_text_from_image(pagina) for pagina in paginas)
+
+
+def _resolver_auto_id(nota_usuario: str | None) -> int | None:
+    """Decide a qué auto pertenece un gasto de tipo 'auto'.
+
+    Si la nota trae "auto:nombre" y coincide con un auto registrado, se usa ese.
+    Si no trae tag pero solo hay un auto activo registrado, se asume que es ese
+    (no hay ambigüedad posible). En cualquier otro caso queda sin asignar.
+    """
+    tag = parse_auto_tag(nota_usuario)
+    if tag:
+        auto = db.find_auto_by_nombre(tag)
+        return auto["id"] if auto else None
+
+    unico = db.get_unico_auto_activo()
+    return unico["id"] if unico else None
 
 
 def _registrar_aumento_nomina(nomina_id: int, nomina) -> None:
@@ -118,6 +134,8 @@ def process_document(
         nomina_id = None
         if resultado.gasto is not None:
             resultado.gasto.kilometraje = kilometraje
+            if resultado.gasto.tipo == "auto":
+                resultado.gasto.auto_id = _resolver_auto_id(nota_usuario)
             gasto_id = db.insert_gasto(documento_id, resultado.gasto)
         if resultado.nomina is not None:
             nomina_id = db.insert_nomina(documento_id, resultado.nomina)

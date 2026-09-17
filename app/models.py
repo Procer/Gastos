@@ -25,6 +25,7 @@ class GastoData:
     metodo_pago: str | None = None
     es_recurrente: bool = False
     kilometraje: int | None = None
+    auto_id: int | None = None
 
 
 @dataclass

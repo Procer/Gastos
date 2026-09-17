@@ -71,12 +71,17 @@ Consultar directamente la base de datos:
 docker compose exec postgres psql -U gastos -d gastos -c "SELECT id, estado, tipo_documento FROM documentos ORDER BY id DESC LIMIT 5;"
 ```
 
-### Ver los datos sin usar SQL
+### Panel visual
 
-Mientras no existe el dashboard con gráficas, se puede navegar la base de datos con **Adminer** (ya incluido en `docker-compose.yml`): abre **http://localhost:8081**, y entra con:
+Abre **http://localhost:8000/dashboard/**: es la forma normal de usar el sistema día a día
+(subir comprobantes, ver gastos/nómina, gestionar autos y tareas — no hace falta curl ni
+Swagger). La primera vez pide la `UPLOAD_API_KEY` (queda guardada en el navegador). Ver la
+sección **Ayuda** dentro del panel para instrucciones de los 3 canales de envío.
+
+### Ver los datos sin usar el panel
+
+También se puede navegar la base de datos directo con **Adminer** (incluido en `docker-compose.yml`): abre **http://localhost:8081**, y entra con:
 - Sistema: `PostgreSQL`, Servidor: `postgres`, Usuario: `gastos`, Contraseña: la de `POSTGRES_PASSWORD` en tu `.env`, Base de datos: `gastos`
-
-Desde ahí puedes ver y filtrar las tablas `documentos`, `gastos` y `nomina` con clicks, sin escribir SQL.
 
 ## Desplegar en el VPS
 
@@ -93,6 +98,14 @@ Desde ahí puedes ver y filtrar las tablas `documentos`, `gastos` y `nomina` con
 - **Aumentos de sueldo**: la IA extrae `sueldo_base` de cada recibo de nómina y lo compara contra el recibo anterior del mismo empleador; si cambia, queda registrado en `nomina_aumentos`. Consulta el historial en `GET /nomina/aumentos`
 - **Tareas del auto**: CRUD simple en `/tareas-auto` (crear, listar con filtro `?estado=`, ver una, marcar completada) — cada tarea necesita fecha límite y/o km límite
 - **Integración con km-auto**: `POST /webhooks/km-auto` recibe el resumen diario de kilómetros recorridos que manda el proyecto externo `km-auto`, validado con el header `X-Forward-Secret` contra `KM_AUTO_FORWARD_SECRET`, y hace upsert en `km_diario` (por fecha + vehículo, así reenvíos duplicados no generan filas repetidas)
+- **Panel visual** en `/dashboard`: menú con Inicio, Documentos, Gastos, Nómina, Mi auto y Ayuda — sube comprobantes, filtra, y administra todo sin usar la API directamente
+
+## Múltiples autos (Mi auto)
+
+- Tabla `autos` (nombre, marca, modelo, año, placas, activo) — se crean/editan desde el panel, en **Mi auto**
+- El gasto se asigna solo al vehículo correcto con el tag `auto:nombre` en la nota (mismo mecanismo que `km:`), usando el `nombre` con el que se creó el auto. Si solo hay un vehículo activo, no hace falta etiquetar nada
+- **Tareas del auto** ahora quedan ligadas a un vehículo (`tareas_auto.auto_id`) y, al completarse, pueden guardar `costo`, `kilometraje_completado` y **adjuntos** (fotos/PDF de la factura, en `tareas_auto_adjuntos`) vía `POST /tareas-auto/{id}/adjuntos`
+- "Cargas de combustible" y "Pagos" en el panel son solo una vista filtrada de `gastos` (categoría `gasolina` vs. el resto) por vehículo — no hay una tabla ni un flujo de captura manual separados; todo sigue entrando por comprobante
 
 ## Notas de diseño
 
