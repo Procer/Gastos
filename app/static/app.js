@@ -25,11 +25,17 @@ function marcarEstadoKey(ok, mensaje) {
 
 async function apiFetch(path, opts = {}) {
   const apiKey = getApiKey();
+  if (!apiKey) {
+    marcarEstadoKey(false, "sin API key");
+    throw new Error('Todavía no ingresaste tu API key. Escríbela arriba (en "API Key") y dale "Guardar".');
+  }
   const headers = Object.assign({}, opts.headers, { "X-API-Key": apiKey });
   const resp = await fetch(path, Object.assign({}, opts, { headers }));
   if (resp.status === 401) {
     marcarEstadoKey(false, "API key inválida");
-    throw new Error("API key inválida");
+    throw new Error(
+      "La API key guardada no es correcta. Revisa que sea idéntica (sin espacios de más) a UPLOAD_API_KEY en tu archivo .env, y guárdala de nuevo arriba."
+    );
   }
   if (!resp.ok) {
     const detalle = await resp.text();
@@ -299,7 +305,56 @@ async function cargarMiAuto() {
 
   renderSelectorAutos(autos);
   renderAutosGrid(autos);
-  await cargarSubtabActual();
+  await Promise.all([cargarFichaAuto(), cargarSubtabActual()]);
+}
+
+async function cargarFichaAuto() {
+  const ficha = document.getElementById("fichaAuto");
+  if (autoSeleccionadoId === "todos") {
+    ficha.classList.add("hidden");
+    return;
+  }
+  ficha.classList.remove("hidden");
+
+  const auto = autosCache.find((a) => a.id === autoSeleccionadoId);
+  const [gastos, pendientes] = await Promise.all([
+    apiFetch(`/gastos?auto_id=${autoSeleccionadoId}&limit=1000`),
+    apiFetch(`/tareas-auto?estado=pendiente&auto_id=${autoSeleccionadoId}`),
+  ]);
+
+  const gastoAcumulado = gastos.reduce((acc, g) => acc + Number(g.monto), 0);
+
+  const mesActual = new Date().toISOString().slice(0, 7);
+  const gastoDelMes = gastos
+    .filter((g) => String(g.fecha).slice(0, 7) === mesActual)
+    .reduce((acc, g) => acc + Number(g.monto), 0);
+
+  const kmsConDato = gastos.map((g) => g.kilometraje).filter((k) => k !== null && k !== undefined);
+  const kilometrajeActual = kmsConDato.length ? Math.max(...kmsConDato) : auto?.kilometraje_inicial ?? null;
+
+  const pendientesOrdenadas = [...pendientes].sort((a, b) => {
+    if (a.fecha_limite && b.fecha_limite) return new Date(a.fecha_limite) - new Date(b.fecha_limite);
+    if (a.fecha_limite) return -1;
+    if (b.fecha_limite) return 1;
+    if (a.km_limite && b.km_limite) return a.km_limite - b.km_limite;
+    return 0;
+  });
+  const proxima = pendientesOrdenadas[0];
+  let textoProxima = "Ninguna pendiente";
+  if (proxima) {
+    const detalle = proxima.fecha_limite
+      ? formatoFecha(proxima.fecha_limite)
+      : proxima.km_limite
+        ? `${proxima.km_limite} km`
+        : null;
+    textoProxima = detalle ? `${proxima.descripcion} (${detalle})` : proxima.descripcion;
+  }
+
+  document.getElementById("fichaGastoAcumulado").textContent = formatoMoneda(gastoAcumulado);
+  document.getElementById("fichaGastoMes").textContent = formatoMoneda(gastoDelMes);
+  document.getElementById("fichaKmActual").textContent =
+    kilometrajeActual !== null && kilometrajeActual !== undefined ? `${kilometrajeActual} km` : "—";
+  document.getElementById("fichaProximaTarea").textContent = textoProxima;
 }
 
 function renderSelectorAutos(autos) {
@@ -332,7 +387,7 @@ function renderAutosGrid(autos) {
     const info = document.createElement("div");
     info.innerHTML = `
       <h4>${auto.nombre}</h4>
-      <div class="muted">${[auto.marca, auto.modelo, auto.anio].filter(Boolean).join(" ") || "—"}</div>
+      <div class="muted">${[auto.marca, auto.modelo, auto.version, auto.anio].filter(Boolean).join(" ") || "—"}</div>
       <div class="muted">${auto.placas || ""}</div>
     `;
     card.appendChild(info);
@@ -369,6 +424,7 @@ function renderAutosGrid(autos) {
       autoSeleccionadoId = auto.id;
       document.getElementById("filtroAutoSeleccionado").value = String(auto.id);
       renderAutosGrid(autosCache);
+      cargarFichaAuto();
       cargarSubtabActual();
     };
 
@@ -391,8 +447,12 @@ function abrirModalAuto(auto) {
         <input id="mAutoNombre" value="${editando ? escapeAttr(auto.nombre) : ""}" required></label>
       <label>Marca <input id="mAutoMarca" value="${escapeAttr(auto?.marca)}"></label>
       <label>Modelo <input id="mAutoModelo" value="${escapeAttr(auto?.modelo)}"></label>
+      <label>Versión/trim <input id="mAutoVersion" value="${escapeAttr(auto?.version)}" placeholder="ej. Advance"></label>
       <label>Año <input id="mAutoAnio" type="number" value="${escapeAttr(auto?.anio)}"></label>
       <label>Placas <input id="mAutoPlacas" value="${escapeAttr(auto?.placas)}"></label>
+      <label>Fecha de compra <input id="mAutoFechaCompra" type="date" value="${escapeAttr(auto?.fecha_compra ? String(auto.fecha_compra).slice(0, 10) : "")}"></label>
+      <label>Kilometraje inicial <input id="mAutoKmInicial" type="number" value="${escapeAttr(auto?.kilometraje_inicial)}"></label>
+      <label>Consumo (km/l) <input id="mAutoConsumo" type="number" step="0.1" value="${escapeAttr(auto?.consumo_km_l)}" placeholder="ej. 14.5"></label>
       <div class="modal-acciones">
         <button type="button" class="secondary" id="mAutoCancelar">Cancelar</button>
         <button type="button" id="mAutoGuardar">Guardar</button>
@@ -408,12 +468,18 @@ function abrirModalAuto(auto) {
       return;
     }
     const anioValor = document.getElementById("mAutoAnio").value;
+    const kmInicialValor = document.getElementById("mAutoKmInicial").value;
+    const consumoValor = document.getElementById("mAutoConsumo").value;
     const payload = {
       nombre,
       marca: document.getElementById("mAutoMarca").value.trim() || null,
       modelo: document.getElementById("mAutoModelo").value.trim() || null,
+      version: document.getElementById("mAutoVersion").value.trim() || null,
       anio: anioValor ? Number(anioValor) : null,
       placas: document.getElementById("mAutoPlacas").value.trim() || null,
+      fecha_compra: document.getElementById("mAutoFechaCompra").value || null,
+      kilometraje_inicial: kmInicialValor ? Number(kmInicialValor) : null,
+      consumo_km_l: consumoValor ? Number(consumoValor) : null,
     };
     try {
       if (editando) {
@@ -587,7 +653,7 @@ function abrirModalCompletar(tarea) {
         }),
       });
       cerrarModal();
-      await cargarTareasMiAuto();
+      await Promise.all([cargarTareasMiAuto(), cargarFichaAuto()]);
     } catch (err) {
       alert("Error: " + err.message);
     }
@@ -763,6 +829,7 @@ function init() {
     const v = ev.target.value;
     autoSeleccionadoId = v === "todos" ? "todos" : Number(v);
     renderAutosGrid(autosCache);
+    cargarFichaAuto();
     cargarSubtabActual();
   });
 
@@ -799,7 +866,7 @@ function init() {
       }),
     });
     document.getElementById("formTarea").reset();
-    await cargarTareasMiAuto();
+    await Promise.all([cargarTareasMiAuto(), cargarFichaAuto()]);
   });
 
   document.getElementById("modalCerrar").addEventListener("click", cerrarModal);

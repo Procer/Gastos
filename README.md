@@ -102,8 +102,9 @@ También se puede navegar la base de datos directo con **Adminer** (incluido en 
 
 ## Múltiples autos (Mi auto)
 
-- Tabla `autos` (nombre, marca, modelo, año, placas, activo) — se crean/editan desde el panel, en **Mi auto**
+- Tabla `autos`: nombre, marca, modelo, **versión/trim**, año, placas, **fecha de compra**, **kilometraje inicial**, **consumo (km/l)**, activo — se crean/editan desde el panel, en **Mi auto**
 - El gasto se asigna solo al vehículo correcto con el tag `auto:nombre` en la nota (mismo mecanismo que `km:`), usando el `nombre` con el que se creó el auto. Si solo hay un vehículo activo, no hace falta etiquetar nada
+- **Ficha resumen** por vehículo (al seleccionar uno en Mi auto): gasto acumulado, gasto del mes, kilometraje actual (el más reciente registrado, o el inicial si aún no hay gastos) y la próxima tarea pendiente
 - **Tareas del auto** ahora quedan ligadas a un vehículo (`tareas_auto.auto_id`) y, al completarse, pueden guardar `costo`, `kilometraje_completado` y **adjuntos** (fotos/PDF de la factura, en `tareas_auto_adjuntos`) vía `POST /tareas-auto/{id}/adjuntos`
 - "Cargas de combustible" y "Pagos" en el panel son solo una vista filtrada de `gastos` (categoría `gasolina` vs. el resto) por vehículo — no hay una tabla ni un flujo de captura manual separados; todo sigue entrando por comprobante
 

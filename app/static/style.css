@@ -148,6 +148,9 @@ input, select {
 .resumen-tile { display: flex; flex-direction: column; gap: 6px; }
 .resumen-label { font-size: 0.8rem; color: var(--text-dim); }
 .resumen-valor { font-size: 1.4rem; font-weight: 600; }
+.resumen-valor.texto { font-size: 0.95rem; font-weight: 500; white-space: normal; }
+
+#fichaAuto.hidden { display: none; }
 
 .filtros { display: flex; gap: 16px; margin-bottom: 12px; font-size: 0.85rem; color: var(--text-dim); align-items: center; }
 

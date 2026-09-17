@@ -386,17 +386,28 @@ def get_tarea_adjunto(adjunto_id: int) -> dict[str, Any] | None:
 
 
 def insert_auto(
-    nombre: str, marca: str | None, modelo: str | None, anio: int | None, placas: str | None
+    nombre: str,
+    marca: str | None,
+    modelo: str | None,
+    anio: int | None,
+    placas: str | None,
+    version: str | None = None,
+    fecha_compra: str | None = None,
+    kilometraje_inicial: int | None = None,
+    consumo_km_l: float | None = None,
 ) -> int:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO autos (nombre, marca, modelo, anio, placas)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO autos
+                    (nombre, marca, modelo, anio, placas, version, fecha_compra,
+                     kilometraje_inicial, consumo_km_l)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (nombre, marca, modelo, anio, placas),
+                (nombre, marca, modelo, anio, placas, version, fecha_compra,
+                 kilometraje_inicial, consumo_km_l),
             )
             return cur.fetchone()[0]
 
@@ -442,6 +453,10 @@ def update_auto(
     anio: int | None,
     placas: str | None,
     activo: bool | None,
+    version: str | None = None,
+    fecha_compra: str | None = None,
+    kilometraje_inicial: int | None = None,
+    consumo_km_l: float | None = None,
 ) -> None:
     with get_connection() as conn:
         with conn.cursor() as cur:
@@ -453,10 +468,15 @@ def update_auto(
                     modelo = COALESCE(%s, modelo),
                     anio = COALESCE(%s, anio),
                     placas = COALESCE(%s, placas),
-                    activo = COALESCE(%s, activo)
+                    activo = COALESCE(%s, activo),
+                    version = COALESCE(%s, version),
+                    fecha_compra = COALESCE(%s, fecha_compra),
+                    kilometraje_inicial = COALESCE(%s, kilometraje_inicial),
+                    consumo_km_l = COALESCE(%s, consumo_km_l)
                 WHERE id = %s
                 """,
-                (nombre, marca, modelo, anio, placas, activo, auto_id),
+                (nombre, marca, modelo, anio, placas, activo, version, fecha_compra,
+                 kilometraje_inicial, consumo_km_l, auto_id),
             )
 
 

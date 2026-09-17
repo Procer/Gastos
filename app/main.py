@@ -199,6 +199,10 @@ class AutoCrear(BaseModel):
     modelo: str | None = None
     anio: int | None = None
     placas: str | None = None
+    version: str | None = None
+    fecha_compra: str | None = None
+    kilometraje_inicial: int | None = None
+    consumo_km_l: float | None = None
 
 
 class AutoActualizar(BaseModel):
@@ -208,6 +212,10 @@ class AutoActualizar(BaseModel):
     anio: int | None = None
     placas: str | None = None
     activo: bool | None = None
+    version: str | None = None
+    fecha_compra: str | None = None
+    kilometraje_inicial: int | None = None
+    consumo_km_l: float | None = None
 
 
 @app.post("/autos")
@@ -215,7 +223,17 @@ def crear_auto(auto: AutoCrear, x_api_key: str = Header(default="")):
     _validar_api_key(x_api_key)
     if db.find_auto_by_nombre(auto.nombre):
         raise HTTPException(status_code=409, detail="Ya existe un auto con ese nombre")
-    auto_id = db.insert_auto(auto.nombre, auto.marca, auto.modelo, auto.anio, auto.placas)
+    auto_id = db.insert_auto(
+        auto.nombre,
+        auto.marca,
+        auto.modelo,
+        auto.anio,
+        auto.placas,
+        auto.version,
+        auto.fecha_compra,
+        auto.kilometraje_inicial,
+        auto.consumo_km_l,
+    )
     return {"id": auto_id}
 
 
@@ -240,7 +258,17 @@ def actualizar_auto(auto_id: int, datos: AutoActualizar, x_api_key: str = Header
     if not db.get_auto(auto_id):
         raise HTTPException(status_code=404, detail="Auto no encontrado")
     db.update_auto(
-        auto_id, datos.nombre, datos.marca, datos.modelo, datos.anio, datos.placas, datos.activo
+        auto_id,
+        datos.nombre,
+        datos.marca,
+        datos.modelo,
+        datos.anio,
+        datos.placas,
+        datos.activo,
+        datos.version,
+        datos.fecha_compra,
+        datos.kilometraje_inicial,
+        datos.consumo_km_l,
     )
     return {"ok": True}
 

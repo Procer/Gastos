@@ -157,7 +157,31 @@
             <select id="filtroAutoSeleccionado"></select>
           </label>
         </div>
+      </div>
 
+      <div class="card" id="fichaAuto">
+        <h2>Resumen del vehículo</h2>
+        <div class="resumen-grid">
+          <div class="resumen-tile">
+            <span class="resumen-label">Gasto acumulado</span>
+            <span class="resumen-valor" id="fichaGastoAcumulado">—</span>
+          </div>
+          <div class="resumen-tile">
+            <span class="resumen-label">Gasto este mes</span>
+            <span class="resumen-valor" id="fichaGastoMes">—</span>
+          </div>
+          <div class="resumen-tile">
+            <span class="resumen-label">Kilometraje actual</span>
+            <span class="resumen-valor" id="fichaKmActual">—</span>
+          </div>
+          <div class="resumen-tile">
+            <span class="resumen-label">Próxima tarea</span>
+            <span class="resumen-valor texto" id="fichaProximaTarea">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="subtabs" id="subtabsAuto">
           <button class="subtab-btn active" data-subtab="cargas">Cargas de combustible</button>
           <button class="subtab-btn" data-subtab="pagos">Pagos</button>
