@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from app import db
@@ -6,6 +7,7 @@ from app.config import settings
 from app.pipeline import process_document
 
 app = FastAPI(title="Agente de gastos")
+app.mount("/dashboard", StaticFiles(directory="app/static", html=True), name="dashboard")
 
 
 def _validar_api_key(x_api_key: str) -> None:
@@ -47,6 +49,35 @@ def get_documento(documento_id: int, x_api_key: str = Header(default="")):
 def get_nomina_aumentos(x_api_key: str = Header(default="")):
     _validar_api_key(x_api_key)
     return db.list_nomina_aumentos()
+
+
+@app.get("/documentos")
+def listar_documentos(limit: int = 50, x_api_key: str = Header(default="")):
+    _validar_api_key(x_api_key)
+    return db.list_documentos(limit)
+
+
+@app.get("/gastos")
+def listar_gastos(
+    tipo: str | None = None,
+    es_recurrente: bool | None = None,
+    limit: int = 200,
+    x_api_key: str = Header(default=""),
+):
+    _validar_api_key(x_api_key)
+    return db.list_gastos(tipo, es_recurrente, limit)
+
+
+@app.get("/nomina")
+def listar_nomina(limit: int = 50, x_api_key: str = Header(default="")):
+    _validar_api_key(x_api_key)
+    return db.list_nomina(limit)
+
+
+@app.get("/km-diario")
+def listar_km_diario(limit: int = 60, x_api_key: str = Header(default="")):
+    _validar_api_key(x_api_key)
+    return db.list_km_diario(limit)
 
 
 class TareaAutoCrear(BaseModel):

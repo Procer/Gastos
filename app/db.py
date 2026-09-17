@@ -217,6 +217,65 @@ def get_documento(documento_id: int) -> dict[str, Any] | None:
             return cur.fetchone()
 
 
+def list_documentos(limit: int = 50) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT id, fuente, nombre_archivo_original, estado, tipo_documento,
+                       mensaje_error, gasto_id, nomina_id, creado_en, procesado_en
+                FROM documentos
+                ORDER BY id DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            return cur.fetchall()
+
+
+def list_gastos(
+    tipo: str | None = None, es_recurrente: bool | None = None, limit: int = 200
+) -> list[dict[str, Any]]:
+    condiciones = []
+    valores: list[Any] = []
+    if tipo:
+        condiciones.append("tipo = %s")
+        valores.append(tipo)
+    if es_recurrente is not None:
+        condiciones.append("es_recurrente = %s")
+        valores.append(es_recurrente)
+    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+    valores.append(limit)
+
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                f"SELECT * FROM gastos {where} ORDER BY fecha DESC, id DESC LIMIT %s",
+                valores,
+            )
+            return cur.fetchall()
+
+
+def list_nomina(limit: int = 50) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM nomina ORDER BY fecha_pago DESC NULLS LAST, id DESC LIMIT %s",
+                (limit,),
+            )
+            return cur.fetchall()
+
+
+def list_km_diario(limit: int = 60) -> list[dict[str, Any]]:
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM km_diario ORDER BY fecha DESC LIMIT %s",
+                (limit,),
+            )
+            return cur.fetchall()
+
+
 def insert_tarea_auto(
     descripcion: str, fecha_limite: str | None, km_limite: int | None
 ) -> int:

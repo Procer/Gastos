@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente de gastos — Panel</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>Agente de gastos</h1>
+  <div class="apikey-box">
+    <label for="apiKeyInput">API Key</label>
+    <input type="password" id="apiKeyInput" placeholder="Pega tu UPLOAD_API_KEY">
+    <button id="btnGuardarKey">Guardar</button>
+    <span id="apiKeyEstado" class="estado-key"></span>
+  </div>
+</header>
+
+<main>
+  <section class="card" id="seccion-subir">
+    <h2>Subir comprobante</h2>
+    <form id="formSubir">
+      <input type="file" id="archivoInput" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" required>
+      <input type="text" id="notaInput" placeholder="Nota (opcional) — ej. km:45230">
+      <button type="submit">Subir y procesar</button>
+    </form>
+    <div id="subirResultado"></div>
+  </section>
+
+  <section class="resumen-grid">
+    <div class="card resumen-tile">
+      <span class="resumen-label">Gasto del mes</span>
+      <span class="resumen-valor" id="resGastoMes">—</span>
+    </div>
+    <div class="card resumen-tile">
+      <span class="resumen-label">Recurrentes / variables (mes)</span>
+      <span class="resumen-valor" id="resRecurrentes">—</span>
+    </div>
+    <div class="card resumen-tile">
+      <span class="resumen-label">Tareas del auto pendientes</span>
+      <span class="resumen-valor" id="resTareas">—</span>
+    </div>
+    <div class="card resumen-tile">
+      <span class="resumen-label">Aumentos de nómina detectados</span>
+      <span class="resumen-valor" id="resAumentos">—</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Documentos recientes</h2>
+    <div class="table-wrap">
+      <table id="tablaDocumentos">
+        <thead>
+          <tr><th>ID</th><th>Fuente</th><th>Archivo</th><th>Estado</th><th>Tipo</th><th>Fecha</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Gastos</h2>
+    <div class="filtros">
+      <label>Tipo:
+        <select id="filtroTipo">
+          <option value="">Todos</option>
+          <option value="personal">Personal</option>
+          <option value="auto">Auto</option>
+        </select>
+      </label>
+      <label>Recurrencia:
+        <select id="filtroRecurrente">
+          <option value="">Todas</option>
+          <option value="true">Recurrentes</option>
+          <option value="false">Variables</option>
+        </select>
+      </label>
+    </div>
+    <div class="charts-row">
+      <div class="chart-box"><canvas id="chartCategorias"></canvas></div>
+      <div class="chart-box"><canvas id="chartRecurrencia"></canvas></div>
+    </div>
+    <div class="table-wrap">
+      <table id="tablaGastos">
+        <thead>
+          <tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Comercio</th><th>Monto</th><th>Recurrente</th><th>Km</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Nómina</h2>
+    <div class="table-wrap">
+      <table id="tablaNomina">
+        <thead>
+          <tr><th>Fecha pago</th><th>Empleador</th><th>Sueldo base</th><th>Percepciones</th><th>Deducciones</th><th>Neto</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <h3>Aumentos detectados</h3>
+    <div class="table-wrap">
+      <table id="tablaAumentos">
+        <thead>
+          <tr><th>Fecha pago</th><th>Empleador</th><th>Anterior</th><th>Nuevo</th><th>Diferencia</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Tareas del auto</h2>
+    <form id="formTarea" class="form-inline">
+      <input type="text" id="tareaDescripcion" placeholder="Descripción" required>
+      <input type="date" id="tareaFechaLimite">
+      <input type="number" id="tareaKmLimite" placeholder="Km límite">
+      <button type="submit">Crear tarea</button>
+    </form>
+    <div class="filtros">
+      <label>Estado:
+        <select id="filtroEstadoTarea">
+          <option value="">Todas</option>
+          <option value="pendiente" selected>Pendientes</option>
+          <option value="completada">Completadas</option>
+        </select>
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table id="tablaTareas">
+        <thead>
+          <tr><th>Descripción</th><th>Fecha límite</th><th>Km límite</th><th>Estado</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Kilometraje diario (km-auto)</h2>
+    <div class="chart-box chart-box-full"><canvas id="chartKm"></canvas></div>
+    <div class="table-wrap">
+      <table id="tablaKm">
+        <thead>
+          <tr><th>Fecha</th><th>Vehículo</th><th>Km</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
